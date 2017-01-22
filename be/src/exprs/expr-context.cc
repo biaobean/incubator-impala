@@ -342,6 +342,10 @@ void ExprContext::PrintValue(const TupleRow* row, stringstream* stream) {
   RawValue::PrintValue(GetValue(row), root_->type(), root_->output_scale_, stream);
 }
 
+BooleanVal ExprContext::EvalBloomFilter(const parquet::BloomFilter* bf) {
+  return root_->EvalBloomFilter(this, bf);
+}
+
 BooleanVal ExprContext::GetBooleanVal(TupleRow* row) {
   return root_->GetBooleanVal(this, row);
 }

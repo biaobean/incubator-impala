@@ -443,6 +443,17 @@ bool ExecNode::EvalConjuncts(ExprContext* const* ctxs, int num_ctxs, TupleRow* r
   return true;
 }
 
+
+bool ExecNode::EvalBloomFilter(ExprContext* const* ctxs, int num_ctxs, const parquet::BloomFilter *bf) {
+  for (int i = 0; i < num_ctxs; ++i) {
+    BooleanVal v = ctxs[i]->EvalBloomFilter(bf);
+    //VLOG_QUERY << "BF bits: " << bf->numBits << " Hash functions : " << bf->numHashFunctions;
+    if (v.is_null || !v.val) return false;
+  }
+  return true;
+}
+
+
 Status ExecNode::QueryMaintenance(RuntimeState* state) {
   FreeLocalAllocations();
   return state->CheckQueryState();

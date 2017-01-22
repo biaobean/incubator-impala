@@ -25,6 +25,7 @@
 #include "common/status.h"
 #include "exprs/expr-context.h"
 #include "gen-cpp/PlanNodes_types.h"
+#include "gen-cpp/parquet_types.h"
 #include "runtime/descriptors.h" // for RowDescriptor
 #include "util/blocking-queue.h"
 #include "util/runtime-profile.h"
@@ -148,6 +149,11 @@ class ExecNode {
   /// TODO: This doesn't use the vector<Expr*> signature because I haven't figured
   /// out how to deal with declaring a templated std:vector type in IR
   static bool EvalConjuncts(ExprContext* const* ctxs, int num_ctxs, TupleRow* row);
+  
+  /// Evaluate ExprContexts over row.  Returns true if all exprs return true.
+  /// TODO: This doesn't use the vector<Expr*> signature because I haven't figured
+  /// out how to deal with declaring a templated std:vector type in IR
+  static bool EvalBloomFilter(ExprContext* const* ctxs, int num_ctxs, const parquet::BloomFilter* bf);
 
   /// Codegen EvalConjuncts(). Returns a non-OK status if the function couldn't be
   /// codegen'd. The codegen'd version uses inlined, codegen'd GetBooleanVal() functions.

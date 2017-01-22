@@ -99,6 +99,7 @@
 #include "runtime/types.h"
 #include "udf/udf-internal.h" // for CollectionVal
 #include "udf/udf.h"
+#include "gen-cpp/parquet_types.h"
 
 using namespace impala_udf;
 
@@ -158,6 +159,10 @@ class Expr {
 
   const ColumnType& type() const { return type_; }
   bool is_slotref() const { return is_slotref_; }
+  
+  virtual BooleanVal EvalBloomFilter(ExprContext* context, const parquet::BloomFilter *bf){
+    return new BooleanVal(true); 
+  }
 
   const std::vector<Expr*>& children() const { return children_; }
 

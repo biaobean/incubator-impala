@@ -23,6 +23,7 @@
 
 #include "exprs/expr.h"
 #include "udf/udf.h"
+#include "gen-cpp/parquet_types.h"
 
 using namespace impala_udf;
 
@@ -79,6 +80,9 @@ class ScalarFnCall: public Expr {
   virtual StringVal GetStringVal(ExprContext* context, const TupleRow*);
   virtual TimestampVal GetTimestampVal(ExprContext* context, const TupleRow*);
   virtual DecimalVal GetDecimalVal(ExprContext* context, const TupleRow*);
+
+  
+  virtual BooleanVal EvalBloomFilter(ExprContext* context, const parquet::BloomFilter *bf);
 
  private:
   /// If this function has var args, children()[vararg_start_idx_] is the first vararg
