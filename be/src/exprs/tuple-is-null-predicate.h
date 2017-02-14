@@ -25,7 +25,7 @@ namespace impala {
 
 class TExprNode;
 
-/// Returns true if alll of the given tuples are NULL, false otherwise.
+/// Returns true if all of the given tuples are NULL, false otherwise.
 /// It is important that this predicate not require the given tuples to be nullable,
 /// because the FE may sometimes wrap expressions in this predicate that contain SlotRefs
 /// on non-nullable tuples (see IMPALA-904).

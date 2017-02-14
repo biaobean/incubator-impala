@@ -182,6 +182,7 @@ Status ScalarFnCall::Open(RuntimeState* state, ExprContext* ctx,
       input_vals->push_back(input_val);
     }
   }
+  
   // Only evaluate constant arguments at the top level of function contexts.
   // If 'ctx' was cloned, the constant values were copied from the parent.
   if (scope == FunctionContext::FRAGMENT_LOCAL) {
@@ -724,7 +725,6 @@ TimestampVal ScalarFnCall::GetTimestampVal(ExprContext* context, const TupleRow*
 
 DecimalVal ScalarFnCall::GetDecimalVal(ExprContext* context, const TupleRow* row)
 {
-  VLOG_QUERY << "DEBUG:" << __FUNCTION__ << ":";
   DCHECK_EQ(type_.type, TYPE_DECIMAL);
   DCHECK(context != NULL);
   if (scalar_fn_wrapper_ == NULL) return InterpretEval<DecimalVal>(context, row);
@@ -735,9 +735,11 @@ DecimalVal ScalarFnCall::GetDecimalVal(ExprContext* context, const TupleRow* row
 BooleanVal ScalarFnCall::EvalBloomFilter(ExprContext* context, const parquet::BloomFilter *bloom_filter)
 {
   BooleanVal ret = new BooleanVal(true);
+  
+  if (fn_.name.function_name.compare("eq") != 0 && 
+      fn_.name.function_name.compare("in_set_lookup") !=0) return ret;
 
-  if (fn_.name.function_name.compare("eq") != 0) return ret;
-
+  ret.val = false;
   for (int i = 0; i < GetNumChildren(); ++i) {
     if (!children_[i]->IsLiteral()) continue;
 
@@ -753,19 +755,19 @@ BooleanVal ScalarFnCall::EvalBloomFilter(ExprContext* context, const parquet::Bl
     {
       impala_udf::SmallIntVal val = children_[i]->GetSmallIntVal(context, NULL);
       ret.val = bf.TestLong(val.val);
-      return ret;
+      if (ret.val) return ret;
     }
     case TYPE_INT:
     {
       impala_udf::IntVal val = children_[i]->GetIntVal(context, NULL);
       ret.val = bf.TestLong(val.val);
-      return ret;
+      if (ret.val) return ret;
     }
     case TYPE_BIGINT:
     {
       impala_udf::BigIntVal val = children_[i]->GetBigIntVal(context, NULL);
       ret.val = bf.TestLong(val.val);
-      return ret;
+      if (ret.val) return ret;
     }
     case TYPE_FLOAT:
     case TYPE_DOUBLE:
@@ -774,7 +776,7 @@ BooleanVal ScalarFnCall::EvalBloomFilter(ExprContext* context, const parquet::Bl
     {
       impala_udf::StringVal val = children_[i]->GetStringVal(context, NULL);
       ret.val = bf.TestBytes(val.ptr, val.len);
-      return ret;
+      if (ret.val) return ret;
     }
     case TYPE_VARCHAR:
     case TYPE_CHAR:
