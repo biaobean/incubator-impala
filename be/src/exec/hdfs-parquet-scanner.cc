@@ -469,7 +469,7 @@ bool HdfsParquetScanner::EvalStatistic(int row_group_idx, ParquetColumnReader* c
 Status HdfsParquetScanner::NextRowGroup() {
   advance_row_group_ = false;
   row_group_rows_read_ = 0;
-  
+
   // Loop until we have found a non-empty row group, and successfully initialized and
   // seeded the column readers. Return a non-OK status from within loop only if the error
   // is non-recoverable, otherwise log the error and continue with the next row group.
@@ -502,7 +502,7 @@ Status HdfsParquetScanner::NextRowGroup() {
     }
     COUNTER_ADD(num_row_groups_counter_, 1);
 
-    // Apply Bloom Filter on "eq" function.
+    // Apply Bloom Filter.
     bool pass_bloom_filter = true;
     std::unordered_set<int> conjunct_columns;
     GetConjunctColumns(&conjunct_columns);
@@ -514,7 +514,12 @@ Status HdfsParquetScanner::NextRowGroup() {
         }
       }
     }
-    if (!pass_bloom_filter) continue;
+    if (!pass_bloom_filter) {
+      VLOG_QUERY << "Skip" << row_group_idx_ << " row group";
+      continue;
+    }
+    
+    VLOG_QUERY << "Pass BF";
 
     // Prepare column readers for first read
     RETURN_IF_ERROR(InitColumns(row_group_idx_, column_readers_));
@@ -623,6 +628,7 @@ Status HdfsParquetScanner::AssembleRows(
     }
     row_group_rows_read_ += scratch_batch_->num_tuples;
     COUNTER_ADD(scan_node_->rows_read_counter(), scratch_batch_->num_tuples);
+
     int num_row_to_commit = TransferScratchTuples(row_batch);
     RETURN_IF_ERROR(CommitRows(row_batch, num_row_to_commit));
     if (row_batch->AtCapacity()) return Status::OK();
@@ -724,6 +730,7 @@ Status HdfsParquetScanner::Codegen(HdfsScanNodeBase* node,
 
   int replaced = codegen->ReplaceCallSites(fn, eval_conjuncts_fn, "EvalConjuncts");
   DCHECK_EQ(replaced, 1);
+
   Function* eval_runtime_filters_fn;
   RETURN_IF_ERROR(CodegenEvalRuntimeFilters(
       codegen, filter_ctxs, &eval_runtime_filters_fn));
@@ -731,6 +738,7 @@ Status HdfsParquetScanner::Codegen(HdfsScanNodeBase* node,
 
   replaced = codegen->ReplaceCallSites(fn, eval_runtime_filters_fn, "EvalRuntimeFilters");
   DCHECK_EQ(replaced, 1);
+
   fn->setName("ProcessScratchBatch");
   *process_scratch_batch_fn = codegen->FinalizeFunction(fn);
   if (*process_scratch_batch_fn == NULL) {
