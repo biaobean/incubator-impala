@@ -515,12 +515,10 @@ Status HdfsParquetScanner::NextRowGroup() {
       }
     }
     if (!pass_bloom_filter) {
-      VLOG_QUERY << "Skip" << row_group_idx_ << " row group";
+      VLOG_QUERY << "Skip row group";
       continue;
     }
     
-    VLOG_QUERY << "Pass BF";
-
     // Prepare column readers for first read
     RETURN_IF_ERROR(InitColumns(row_group_idx_, column_readers_));
     bool seeding_ok = true;
