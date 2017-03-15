@@ -172,6 +172,7 @@ HdfsParquetScanner::HdfsParquetScanner(HdfsScanNodeBase* scan_node, RuntimeState
       num_scanners_with_no_reads_counter_(NULL),
       num_dict_filtered_row_groups_counter_(NULL),
       codegend_process_scratch_batch_fn_(NULL) {
+  VLOG_QUERY<< "HDFS Parquet Scanner with Bloom Filter support";
   assemble_rows_timer_.Stop();
 }
 
@@ -486,6 +487,42 @@ Status HdfsParquetScanner::GetNextInternal(RowBatch* row_batch) {
   }
 
   return Status::OK();
+}
+
+void HdfsParquetScanner::GetConjunctColumns(std::unordered_set<int> *conjunct_columns) {
+   std::vector<SlotId> tmp;
+   const std::vector<SlotDescriptor*> &slots = scan_node_->tuple_desc()->slots();
+   for (ExprContext* ctx: *scanner_conjunct_ctxs_) {
+     ctx->root()->GetSlotIds(&tmp);
+     for (SlotId id : tmp) {
+       conjunct_columns->insert(slots[id]->col_pos());
+     }
+     tmp.clear();
+   }
+ }
+
+bool HdfsParquetScanner::EvalStatistic(int row_group_idx, ParquetColumnReader* col_reader) {
+  if (!col_reader->IsCollectionReader()) {
+    BaseScalarColumnReader* scala_reader = static_cast<BaseScalarColumnReader*>(col_reader);
+    const parquet::RowGroup& row_group = file_metadata_.row_groups[row_group_idx_];
+    
+    if (!row_group.columns[scala_reader->col_idx()].meta_data.__isset.statistics) return true;
+    
+    const parquet::Statistics& statistics = row_group.columns[scala_reader->col_idx()].meta_data.statistics;
+    const parquet::BloomFilter &bf = statistics.bloom_filter;
+    
+    if (bf.numBits == 0 || bf.numHashFunctions == 0) return true;
+    
+    return ExecNode::EvalBloomFilter(&(*scanner_conjunct_ctxs_)[0], scanner_conjunct_ctxs_->size(), &bf);
+  } else {
+      CollectionColumnReader* collection_reader = static_cast<CollectionColumnReader*>(col_reader);
+      for (ParquetColumnReader* child_reader: *collection_reader->children()){
+         if (!EvalStatistic(row_group_idx, child_reader)) {
+           return false;
+         }
+      }
+    return true;
+  }
 }
 
 Status HdfsParquetScanner::EvaluateStatsConjuncts(const parquet::RowGroup& row_group,
@@ -967,7 +1004,6 @@ Status HdfsParquetScanner::AssembleRows(
     }
     row_group_rows_read_ += scratch_batch_->num_tuples;
     COUNTER_ADD(scan_node_->rows_read_counter(), scratch_batch_->num_tuples);
-
     int num_row_to_commit = TransferScratchTuples(row_batch);
     RETURN_IF_ERROR(CommitRows(row_batch, num_row_to_commit));
     if (row_batch->AtCapacity()) return Status::OK();
@@ -1069,7 +1105,6 @@ Status HdfsParquetScanner::Codegen(HdfsScanNodeBase* node,
 
   int replaced = codegen->ReplaceCallSites(fn, eval_conjuncts_fn, "EvalConjuncts");
   DCHECK_EQ(replaced, 1);
-
   Function* eval_runtime_filters_fn;
   RETURN_IF_ERROR(CodegenEvalRuntimeFilters(
       codegen, filter_ctxs, &eval_runtime_filters_fn));
@@ -1077,7 +1112,6 @@ Status HdfsParquetScanner::Codegen(HdfsScanNodeBase* node,
 
   replaced = codegen->ReplaceCallSites(fn, eval_runtime_filters_fn, "EvalRuntimeFilters");
   DCHECK_EQ(replaced, 1);
-
   fn->setName("ProcessScratchBatch");
   *process_scratch_batch_fn = codegen->FinalizeFunction(fn);
   if (*process_scratch_batch_fn == NULL) {

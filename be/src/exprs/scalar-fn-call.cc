@@ -39,6 +39,8 @@
 #include "util/debug-util.h"
 
 #include "common/names.h"
+#include "exprs/bloom-filter.h"
+#include "exprs/slot-ref.h"
 
 using namespace impala;
 using namespace impala_udf;
@@ -101,7 +103,6 @@ Status ScalarFnCall::Prepare(RuntimeState* state, const RowDescriptor& desc,
     arg_types.push_back(AnyValUtil::ColumnTypeToTypeDesc(children_[i]->type_));
     has_char_arg_or_result |= children_[i]->type_.type == TYPE_CHAR;
   }
-
   fn_context_index_ =
       context->Register(state, return_type, arg_types, ComputeVarArgsBufferSize());
 
@@ -179,7 +180,6 @@ Status ScalarFnCall::Open(RuntimeState* state, ExprContext* ctx,
       input_vals->push_back(input_val);
     }
   }
-
   // Only evaluate constant arguments at the top level of function contexts.
   // If 'ctx' was cloned, the constant values were copied from the parent.
   if (scope == FunctionContext::FRAGMENT_LOCAL) {
@@ -420,7 +420,6 @@ Status ScalarFnCall::GetCodegendComputeFn(LlvmCodeGen* codegen, Function** fn) {
   Value* result_val =
       CodegenAnyVal::CreateCall(codegen, &builder, udf, udf_args, "result");
   builder.CreateRet(result_val);
-
   *fn = codegen->FinalizeFunction(*fn);
   if (*fn == NULL) {
     return Status(
@@ -584,36 +583,95 @@ FloatVal ScalarFnCall::GetFloatVal(ExprContext* context, const TupleRow* row) {
   return fn(context, row);
 }
 
-DoubleVal ScalarFnCall::GetDoubleVal(ExprContext* context, const TupleRow* row) {
+DoubleVal ScalarFnCall::GetDoubleVal(ExprContext* context, const TupleRow* row)
+{
   DCHECK_EQ(type_.type, TYPE_DOUBLE);
   DCHECK(context != NULL);
   if (scalar_fn_wrapper_ == NULL) return InterpretEval<DoubleVal>(context, row);
-  DoubleWrapper fn = reinterpret_cast<DoubleWrapper>(scalar_fn_wrapper_);
+  DoubleWrapper fn = reinterpret_cast<DoubleWrapper> (scalar_fn_wrapper_);
   return fn(context, row);
 }
 
-StringVal ScalarFnCall::GetStringVal(ExprContext* context, const TupleRow* row) {
+StringVal ScalarFnCall::GetStringVal(ExprContext* context, const TupleRow* row)
+{
   DCHECK(type_.IsStringType());
   DCHECK(context != NULL);
   if (scalar_fn_wrapper_ == NULL) return InterpretEval<StringVal>(context, row);
-  StringWrapper fn = reinterpret_cast<StringWrapper>(scalar_fn_wrapper_);
+  StringWrapper fn = reinterpret_cast<StringWrapper> (scalar_fn_wrapper_);
   return fn(context, row);
 }
 
-TimestampVal ScalarFnCall::GetTimestampVal(ExprContext* context, const TupleRow* row) {
+TimestampVal ScalarFnCall::GetTimestampVal(ExprContext* context, const TupleRow* row)
+{
   DCHECK_EQ(type_.type, TYPE_TIMESTAMP);
   DCHECK(context != NULL);
   if (scalar_fn_wrapper_ == NULL) return InterpretEval<TimestampVal>(context, row);
-  TimestampWrapper fn = reinterpret_cast<TimestampWrapper>(scalar_fn_wrapper_);
+  TimestampWrapper fn = reinterpret_cast<TimestampWrapper> (scalar_fn_wrapper_);
   return fn(context, row);
 }
 
-DecimalVal ScalarFnCall::GetDecimalVal(ExprContext* context, const TupleRow* row) {
+DecimalVal ScalarFnCall::GetDecimalVal(ExprContext* context, const TupleRow* row)
+{
+  VLOG_QUERY << "DEBUG:" << __FUNCTION__ << ":";
   DCHECK_EQ(type_.type, TYPE_DECIMAL);
   DCHECK(context != NULL);
   if (scalar_fn_wrapper_ == NULL) return InterpretEval<DecimalVal>(context, row);
-  DecimalWrapper fn = reinterpret_cast<DecimalWrapper>(scalar_fn_wrapper_);
+  DecimalWrapper fn = reinterpret_cast<DecimalWrapper> (scalar_fn_wrapper_);
   return fn(context, row);
+}
+
+BooleanVal ScalarFnCall::EvalBloomFilter(ExprContext* context, const parquet::BloomFilter *bloom_filter)
+{
+  BooleanVal ret = new BooleanVal(true);
+
+  if (fn_.name.function_name.compare("eq") != 0) return ret;
+
+  for (int i = 0; i < GetNumChildren(); ++i) {
+    if (!children_[i]->IsLiteral()) continue;
+
+    impala_udf::BloomFilter bf(bloom_filter->numBits,
+                               bloom_filter->numHashFunctions,
+                               bloom_filter->bitSet.data());
+
+    switch (children_[i]->type_.type) {
+    case TYPE_BOOLEAN:
+    case TYPE_TINYINT:
+      break;
+    case TYPE_SMALLINT:
+    {
+      impala_udf::SmallIntVal val = children_[i]->GetSmallIntVal(context, NULL);
+      ret.val = bf.TestLong(val.val);
+      return ret;
+    }
+    case TYPE_INT:
+    {
+      impala_udf::IntVal val = children_[i]->GetIntVal(context, NULL);
+      ret.val = bf.TestLong(val.val);
+      return ret;
+    }
+    case TYPE_BIGINT:
+    {
+      impala_udf::BigIntVal val = children_[i]->GetBigIntVal(context, NULL);
+      ret.val = bf.TestLong(val.val);
+      return ret;
+    }
+    case TYPE_FLOAT:
+    case TYPE_DOUBLE:
+      break;
+    case TYPE_STRING:
+    {
+      impala_udf::StringVal val = children_[i]->GetStringVal(context, NULL);
+      ret.val = bf.TestBytes(val.ptr, val.len);
+      return ret;
+    }
+    case TYPE_VARCHAR:
+    case TYPE_CHAR:
+    case TYPE_TIMESTAMP:
+      break;
+    default:break;
+    }
+  }
+  return ret;
 }
 
 string ScalarFnCall::DebugString() const {

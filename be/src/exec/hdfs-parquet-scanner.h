@@ -494,6 +494,9 @@ class HdfsParquetScanner : public HdfsScanner {
   /// row batches. Will update 'filter_stats_'.
   void CheckFiltersEffectiveness();
 
+  bool EvalStatistic(int row_group_idx, ParquetColumnReader* col_reader);
+  void GetConjunctColumns(std::unordered_set<int> *conjunct_columns);
+  
   /// Advances 'row_group_idx_' to the next non-empty row group and initializes
   /// the column readers to scan it. Recoverable errors are logged to the runtime
   /// state. Only returns a non-OK status if a non-recoverable error is encountered

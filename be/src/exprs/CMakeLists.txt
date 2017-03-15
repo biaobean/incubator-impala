@@ -27,6 +27,7 @@ add_library(Exprs
   aggregate-functions-ir.cc
   anyval-util.cc
   bit-byte-functions-ir.cc
+  bloom-filter.cc
   case-expr.cc
   cast-functions-ir.cc
   compound-predicates.cc

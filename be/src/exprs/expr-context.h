@@ -25,6 +25,7 @@
 #include "exprs/expr-value.h"
 #include "udf/udf-internal.h" // for CollectionVal
 #include "udf/udf.h"
+#include "gen-cpp/parquet_types.h"
 
 using namespace impala_udf;
 
@@ -119,6 +120,8 @@ class ExprContext {
   bool closed() const { return closed_; }
   bool is_clone() const { return is_clone_; }
 
+  BooleanVal EvalBloomFilter(const parquet::BloomFilter *bf);
+  
   /// Calls Get*Val on root_
   BooleanVal GetBooleanVal(TupleRow* row);
   TinyIntVal GetTinyIntVal(TupleRow* row);
