@@ -23,7 +23,6 @@
 # explicitly to the CLASSPATH.
 
 CLASSPATH=\
-"$IMPALA_HOME"/fe/src/test/resources:\
 "$IMPALA_HOME"/fe/target/classes:\
 "$IMPALA_HOME"/fe/target/dependency:\
 "$IMPALA_HOME"/fe/target/test-classes:\
@@ -43,4 +42,4 @@ for jar in "${IMPALA_HOME}"/testdata/target/dependency/*.jar; do
   fi
 done
 
-export CLASSPATH
+export CLASSPATH=/opt/Beaver/hadoop/etc/hadoop:${CLASSPATH}

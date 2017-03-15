@@ -345,7 +345,8 @@ build_fe() {
 # Build all components.
 build_all_components() {
   # Build the Impala frontend, backend and external data source API.
-  MAKE_IMPALA_ARGS+=" -fe -cscope -tarballs"
+  #MAKE_IMPALA_ARGS+=" -fe -cscope -tarballs"
+  MAKE_IMPALA_ARGS+=" -cscope -tarballs"
   if [[ -e "$IMPALA_LZO" ]]
   then
     MAKE_IMPALA_ARGS+=" -impala-lzo"

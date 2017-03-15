@@ -38,7 +38,7 @@ trap 'echo Error in $0 at line $LINENO: $(cd "'$PWD'" && awk "NR == $LINENO" $0)
 # TODO: We need a better way of managing how these get set. See:
 # https://issues.cloudera.org/browse/IMPALA-4346
 : ${HS2_HOST_PORT=localhost:11050}
-: ${HDFS_NN=localhost:20500}
+: ${HDFS_NN=bdpe822n2:20500}
 : ${IMPALAD=localhost:21000}
 : ${REMOTE_LOAD=}
 : ${CM_HOST=}

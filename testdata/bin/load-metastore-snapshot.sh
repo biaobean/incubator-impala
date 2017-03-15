@@ -62,10 +62,10 @@ fi
 #     DEFAULT_FS environment variable to determine the table locations.
 if [[ "${FILESYSTEM_PREFIX}" != "" ]]; then
   echo "Changing table metadata to point to ${FILESYSTEM_PREFIX}"
-  sed -i "s|hdfs://localhost:20500|${FILESYSTEM_PREFIX}|g" ${TMP_SNAPSHOT_FILE}
-elif [[ "${DEFAULT_FS}" != "hdfs://localhost:20500" ]]; then
+  sed -i "s|hdfs://bdpe822n2:20500|${FILESYSTEM_PREFIX}|g" ${TMP_SNAPSHOT_FILE}
+elif [[ "${DEFAULT_FS}" != "hdfs://bdpe822n2:20500" ]]; then
   echo "Changing table metadata to point to ${DEFAULT_FS}"
-  sed -i "s|hdfs://localhost:20500|${DEFAULT_FS}|g" ${TMP_SNAPSHOT_FILE}
+  sed -i "s|hdfs://bdpe822n2:20500|${DEFAULT_FS}|g" ${TMP_SNAPSHOT_FILE}
 fi
 
 # Drop and re-create the hive metastore database

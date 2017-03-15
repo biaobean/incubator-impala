@@ -349,7 +349,7 @@ fi
 # Typically we build against a snapshot build of Hadoop that includes everything we need
 # for building Impala and running a minicluster.
 export HADOOP_HOME="$CDH_COMPONENTS_HOME/hadoop-${IMPALA_HADOOP_VERSION}/"
-export HADOOP_CONF_DIR="$IMPALA_FE_DIR/src/test/resources"
+export HADOOP_CONF_DIR="/opt/Beaver/hadoop/etc/hadoop"
 # The include and lib paths are needed to pick up hdfs.h and libhdfs.*
 # Allow overriding in case we want to point to a package/install with a different layout.
 export HADOOP_INCLUDE_DIR=${HADOOP_INCLUDE_DIR:-"${HADOOP_HOME}/include"}
