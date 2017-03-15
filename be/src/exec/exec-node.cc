@@ -443,7 +443,6 @@ bool ExecNode::EvalConjuncts(ExprContext* const* ctxs, int num_ctxs, TupleRow* r
   return true;
 }
 
-
 bool ExecNode::EvalBloomFilter(ExprContext* const* ctxs, int num_ctxs, const parquet::BloomFilter *bf) {
   for (int i = 0; i < num_ctxs; ++i) {
     BooleanVal v = ctxs[i]->EvalBloomFilter(bf);
@@ -451,7 +450,6 @@ bool ExecNode::EvalBloomFilter(ExprContext* const* ctxs, int num_ctxs, const par
   }
   return true;
 }
-
 
 Status ExecNode::QueryMaintenance(RuntimeState* state) {
   FreeLocalAllocations();

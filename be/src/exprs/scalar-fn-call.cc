@@ -103,6 +103,7 @@ Status ScalarFnCall::Prepare(RuntimeState* state, const RowDescriptor& desc,
     arg_types.push_back(AnyValUtil::ColumnTypeToTypeDesc(children_[i]->type_));
     has_char_arg_or_result |= children_[i]->type_.type == TYPE_CHAR;
   }
+
   fn_context_index_ =
       context->Register(state, return_type, arg_types, ComputeVarArgsBufferSize());
 
@@ -180,6 +181,7 @@ Status ScalarFnCall::Open(RuntimeState* state, ExprContext* ctx,
       input_vals->push_back(input_val);
     }
   }
+
   // Only evaluate constant arguments at the top level of function contexts.
   // If 'ctx' was cloned, the constant values were copied from the parent.
   if (scope == FunctionContext::FRAGMENT_LOCAL) {
@@ -420,6 +422,7 @@ Status ScalarFnCall::GetCodegendComputeFn(LlvmCodeGen* codegen, Function** fn) {
   Value* result_val =
       CodegenAnyVal::CreateCall(codegen, &builder, udf, udf_args, "result");
   builder.CreateRet(result_val);
+
   *fn = codegen->FinalizeFunction(*fn);
   if (*fn == NULL) {
     return Status(
@@ -583,8 +586,7 @@ FloatVal ScalarFnCall::GetFloatVal(ExprContext* context, const TupleRow* row) {
   return fn(context, row);
 }
 
-DoubleVal ScalarFnCall::GetDoubleVal(ExprContext* context, const TupleRow* row)
-{
+DoubleVal ScalarFnCall::GetDoubleVal(ExprContext* context, const TupleRow* row) {
   DCHECK_EQ(type_.type, TYPE_DOUBLE);
   DCHECK(context != NULL);
   if (scalar_fn_wrapper_ == NULL) return InterpretEval<DoubleVal>(context, row);
@@ -592,8 +594,7 @@ DoubleVal ScalarFnCall::GetDoubleVal(ExprContext* context, const TupleRow* row)
   return fn(context, row);
 }
 
-StringVal ScalarFnCall::GetStringVal(ExprContext* context, const TupleRow* row)
-{
+StringVal ScalarFnCall::GetStringVal(ExprContext* context, const TupleRow* row) {
   DCHECK(type_.IsStringType());
   DCHECK(context != NULL);
   if (scalar_fn_wrapper_ == NULL) return InterpretEval<StringVal>(context, row);
@@ -601,8 +602,7 @@ StringVal ScalarFnCall::GetStringVal(ExprContext* context, const TupleRow* row)
   return fn(context, row);
 }
 
-TimestampVal ScalarFnCall::GetTimestampVal(ExprContext* context, const TupleRow* row)
-{
+TimestampVal ScalarFnCall::GetTimestampVal(ExprContext* context, const TupleRow* row) {
   DCHECK_EQ(type_.type, TYPE_TIMESTAMP);
   DCHECK(context != NULL);
   if (scalar_fn_wrapper_ == NULL) return InterpretEval<TimestampVal>(context, row);
@@ -610,18 +610,15 @@ TimestampVal ScalarFnCall::GetTimestampVal(ExprContext* context, const TupleRow*
   return fn(context, row);
 }
 
-DecimalVal ScalarFnCall::GetDecimalVal(ExprContext* context, const TupleRow* row)
-{
-  VLOG_QUERY << "DEBUG:" << __FUNCTION__ << ":";
+DecimalVal ScalarFnCall::GetDecimalVal(ExprContext* context, const TupleRow* row) {
   DCHECK_EQ(type_.type, TYPE_DECIMAL);
   DCHECK(context != NULL);
   if (scalar_fn_wrapper_ == NULL) return InterpretEval<DecimalVal>(context, row);
-  DecimalWrapper fn = reinterpret_cast<DecimalWrapper> (scalar_fn_wrapper_);
+  DecimalWrapper fn = reinterpret_cast<DecimalWrapper>(scalar_fn_wrapper_);
   return fn(context, row);
 }
 
-BooleanVal ScalarFnCall::EvalBloomFilter(ExprContext* context, const parquet::BloomFilter *bloom_filter)
-{
+BooleanVal ScalarFnCall::EvalBloomFilter(ExprContext* context, const parquet::BloomFilter *bloom_filter) {
   BooleanVal ret = new BooleanVal(true);
 
   if (fn_.name.function_name.compare("eq") != 0) return ret;

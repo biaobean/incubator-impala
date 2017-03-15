@@ -1004,6 +1004,7 @@ Status HdfsParquetScanner::AssembleRows(
     }
     row_group_rows_read_ += scratch_batch_->num_tuples;
     COUNTER_ADD(scan_node_->rows_read_counter(), scratch_batch_->num_tuples);
+
     int num_row_to_commit = TransferScratchTuples(row_batch);
     RETURN_IF_ERROR(CommitRows(row_batch, num_row_to_commit));
     if (row_batch->AtCapacity()) return Status::OK();
@@ -1105,6 +1106,7 @@ Status HdfsParquetScanner::Codegen(HdfsScanNodeBase* node,
 
   int replaced = codegen->ReplaceCallSites(fn, eval_conjuncts_fn, "EvalConjuncts");
   DCHECK_EQ(replaced, 1);
+  
   Function* eval_runtime_filters_fn;
   RETURN_IF_ERROR(CodegenEvalRuntimeFilters(
       codegen, filter_ctxs, &eval_runtime_filters_fn));
@@ -1112,6 +1114,7 @@ Status HdfsParquetScanner::Codegen(HdfsScanNodeBase* node,
 
   replaced = codegen->ReplaceCallSites(fn, eval_runtime_filters_fn, "EvalRuntimeFilters");
   DCHECK_EQ(replaced, 1);
+
   fn->setName("ProcessScratchBatch");
   *process_scratch_batch_fn = codegen->FinalizeFunction(fn);
   if (*process_scratch_batch_fn == NULL) {
