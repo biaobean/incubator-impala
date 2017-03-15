@@ -72,7 +72,7 @@ try:
       for line in version_file.readlines() if not line.startswith('#') ]
 finally:
   version_file.close()
-
+version = version + "-FOR-PARQUET-BLOOM-FILTER"
 print '\n'.join([version, git_hash, build_time])
 
 file_contents = """
