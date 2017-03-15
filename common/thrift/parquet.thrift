@@ -9,18 +9,19 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 /**
  * File format description for the parquet file format
  */
 namespace cpp parquet
-namespace java parquet.format
+namespace java org.apache.parquet.format
 
 /**
  * Types supported by Parquet.  These types are intended to be used in combination
@@ -175,6 +176,30 @@ enum FieldRepetitionType {
   REPEATED = 2;
 }
 
+enum BloomFilterStrategy{
+  /**
+   * See "Less Hashing, Same Performance: Building a Better Bloom Filter" by Adam Kirsch and
+   * Michael Mitzenmacher. The paper argues that this trick doesn't significantly deteriorate the
+   * performance of a Bloom filter (yet only needs two 32bit hash functions).
+   */
+  MURMUR128_32 = 0;
+
+  /**
+   * This strategy uses all 128 bits of {@link Hashing#murmur3_128} when hashing. It looks
+   * different than the implementation in MURMUR128_MITZ_32 because we're avoiding the
+   * multiplication in the loop and doing a (much simpler) += hash2. We're also changing the
+   * index to a positive number by AND'ing with Long.MAX_VALUE instead of flipping the bits.
+   */
+  MURMUR128_64 = 1;
+}
+
+struct BloomFilter{
+    1: required binary bitSet;
+    2: required i32 numBits;
+    3: required i32 numHashFunctions;
+    4: required BloomFilterStrategy bloomFilterStrategy;
+}
+
 /**
  * Statistics per row group and per page
  * All fields are optional.
@@ -187,6 +212,7 @@ struct Statistics {
    3: optional i64 null_count;
    /** count of distinct values occurring */
    4: optional i64 distinct_count;
+   5: optional BloomFilter bloom_filter;
 }
 
 /**
@@ -268,7 +294,7 @@ enum Encoding {
    */
   PLAIN_DICTIONARY = 2;
 
-  /** Group packed run length encoding. Usable for definition/repetition levels
+  /** Group packed run length encoding. Usable for definition/reptition levels
    * encoding and Booleans (on one bit: 0 is false; 1 is true.)
    */
   RLE = 3;
@@ -443,6 +469,22 @@ struct PageEncodingStats {
 }
 
 /**
+ * statistics of a given page type and encoding
+ */
+struct PageEncodingStats {
+
+  /** the page type (data/dic/...) **/
+  1: required PageType page_type;
+
+  /** encoding of the page **/
+  2: required Encoding encoding;
+
+  /** number of pages of this type with this encoding **/
+  3: required i32 count;
+
+}
+
+/**
  * Description for column metadata
  */
 struct ColumnMetaData {
@@ -506,6 +548,9 @@ struct ColumnChunk {
 }
 
 struct RowGroup {
+  /** Metadata for each column chunk in this row group.
+   * This list must have the same order as the SchemaElement list in FileMetaData.
+   **/
   1: required list<ColumnChunk> columns
 
   /** Total byte size of all the uncompressed column data in this row group **/
